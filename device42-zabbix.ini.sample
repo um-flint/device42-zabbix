@@ -1,0 +1,9 @@
+[DEVICE42]
+apiurl = https://device42.yoursite.edu/api/1.0/devices/all/
+username = apiuser
+password = apipass
+
+[ZABBIX]
+apiurl = https://zabbix.yoursite.edu/zabbix/api_jsonrpc.php
+username = apiuser
+password = apipass
