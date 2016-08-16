@@ -39,7 +39,7 @@ zabbix_key = res['result']
 # auth to device42 and get all of the devices
 #
 # args = {'limit': 5, 'include_cols': 'name,custom_fields'}
-args = {'include_cols': 'name,custom_fields'}
+args = {'include_cols': 'name,custom_fields,os'}
 r = requests.get(config.get('DEVICE42', 'apiurl'), auth=(config.get('DEVICE42', 'username'), config.get('DEVICE42', 'password')), params=args)
 devices = r.json()
 
