@@ -38,8 +38,8 @@ zabbix_key = res['result']
 #
 # auth to device42 and get all of the devices
 #
-# args = {'limit': 5, 'include_cols': 'name,custom_fields'}
-args = {'include_cols': 'name,custom_fields,os'}
+# args = {'limit': 40, 'include_cols': 'name,custom_fields,os,customer'}#, 'name': 'foo'}
+args = {'include_cols': 'name,custom_fields,os,customer'}
 r = requests.get(config.get('DEVICE42', 'apiurl'), auth=(config.get('DEVICE42', 'username'), config.get('DEVICE42', 'password')), params=args)
 devices = r.json()
 
@@ -56,6 +56,7 @@ for device in devices['Devices']:
         "method": "host.get",
         "params": {
             "output": "extend",
+            "selectGroups": "extend",
             "filter": {
                 "host": [
                     d42_name
@@ -68,10 +69,10 @@ for device in devices['Devices']:
     r = requests.get(config.get('ZABBIX', 'apiurl'), json=zabbix_host)
     res = r.json()
 
-    #
-    # update the zabbix host (software)
-    #
     if len(res['result']):
+        #
+        # update the zabbix host (inventory > software)
+        #
         zabbix_hostname = res['result'][0]['host']
         zabbix_hostid = res['result'][0]['hostid']
         print "  Zabbix device name (id): {} ({})".format(zabbix_hostname, zabbix_hostid)
@@ -118,6 +119,90 @@ for device in devices['Devices']:
         except Exception as e:
             print "Exception: {}".format(e)
             failed.append(d42_name)
+
+        #
+        # update the zabbix host (host group based on customer)
+        #
+        try:
+
+            zabbix_groupid = None
+
+            zabbix_host_group = {
+                "jsonrpc": "2.0",
+                "method": "hostgroup.get",
+                "params": {
+                    "output": "extend",
+                    "filter": {
+                        "name": [
+                            device['customer']
+                        ]
+                    }
+                },
+                "auth": zabbix_key,
+                "id": 1
+            }
+
+            r2 = requests.post(config.get('ZABBIX', 'apiurl'), json=zabbix_host_group)
+
+            if r2.status_code != 200:
+                print r2.status_code
+                print r2.text
+
+            else:
+                if r2.json()['result']:
+                    print "  Zabbix host group ({}) found".format(device['customer'])
+                    zabbix_groupid = r2.json()['result'][0]['groupid']
+
+                else:
+                    print "  Zabbix host group ({}) not found, creating".format(device['customer'])
+
+                    zabbix_host_group = {
+                        "jsonrpc": "2.0",
+                        "method": "hostgroup.create",
+                        "params": {
+                            "name": device['customer']
+                        },
+                        "auth": zabbix_key,
+                        "id": 1
+                    }
+
+                    r3 = requests.post(config.get('ZABBIX', 'apiurl'), json=zabbix_host_group)
+
+                    if r3.status_code != 200:
+                        print r3.status_code
+                        print r3.text
+                    else:
+                        zabbix_groupid = r3.json()['result']['groupids'][0]
+
+            #
+            # make sure the host is in the host group
+            #
+            if zabbix_groupid:
+                print "    Ensuring host {} is in host group {}".format(zabbix_hostid, zabbix_groupid)
+
+                zabbix_host_massadd = {
+                    "jsonrpc": "2.0",
+                    "method": "hostgroup.massadd",
+                    "params": {
+                        "groups": [{
+                            "groupid": zabbix_groupid
+                        }],
+                        "hosts": [{
+                            "hostid": zabbix_hostid
+                        }]
+                    },
+                    "auth": zabbix_key,
+                    "id": 1
+                }
+
+                r4 = requests.post(config.get('ZABBIX', 'apiurl'), json=zabbix_host_massadd)
+
+                if r4.status_code != 200:
+                    print r4.status_code
+                    print r4.text
+
+        except Exception as e:
+            print "Exception: {}".format(e)
 
     else:
         print "  Not found in Zabbix"
