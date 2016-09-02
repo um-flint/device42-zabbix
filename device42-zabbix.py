@@ -259,7 +259,7 @@ for device in devices['Devices']:
                     "id": 1
                 }
 
-                print zabbix_host_massadd
+                # print zabbix_host_massadd
 
                 r4 = requests.post(config.get('ZABBIX', 'apiurl'), json=zabbix_host_massadd)
 
