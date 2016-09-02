@@ -243,21 +243,23 @@ for device in devices['Devices']:
 
                 print "    Ensuring host {} is in host group(s) {}".format(zabbix_hostid, ','.join(zabbix_groupid))
 
-                zabbix_group_ids = [str("{'groupid': " + i + "}") for i in zabbix_groupid]
+                zabbix_group_ids = [dict(groupid=int(i)) for i in zabbix_groupid]
                 # print zabbix_group_ids
 
                 zabbix_host_massadd = {
                     "jsonrpc": "2.0",
                     "method": "hostgroup.massadd",
                     "params": {
-                        "groups": json.dumps(zabbix_group_ids),
+                        "groups": zabbix_group_ids,
                         "hosts": [{
-                            "hostid": zabbix_hostid
+                            "hostid": int(zabbix_hostid)
                         }]
                     },
                     "auth": zabbix_key,
                     "id": 1
                 }
+
+                print zabbix_host_massadd
 
                 r4 = requests.post(config.get('ZABBIX', 'apiurl'), json=zabbix_host_massadd)
 
